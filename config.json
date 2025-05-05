@@ -1,0 +1,10 @@
+{
+    "MAX_CONNECTIONS": 10,
+    "TIMEOUT": 20000, 
+    "RETRY_COUNT": 3,
+    "DEPTH": 2,
+    "HEADLESS": false,
+    "SEARCH_CONFIG": "search_config.csv",
+    "CRAWLER_STATE": "crawler_state.csv",
+    "RESULT_CSV": "result.csv"
+}

@@ -1,0 +1,65 @@
+pipeline {
+    agent {
+        label 'nodejs'
+    }
+    environment {
+        WORKING_DIR = "${WORKSPACE}"
+        PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD = false
+        PLAYWRIGHT_BROWSERS_PATH = "${WORKSPACE}/playwright-browsers"
+        MAX_CONNECTIONS = "${params.MAX_CONNECTIONS}"
+    }
+    stages {
+        stage('Install Dependencies') {
+            steps {
+                script {
+                    echo "Installing NPM dependencies..."
+                     dir(env.WORKING_DIR) {
+                        sh 'npm install'
+                        sh '''
+                        rm -rf ${WORKSPACE}/playwright-browsers
+                        npx playwright install chromium
+                        '''
+                    }
+                }
+                
+            }
+        }
+        stage('Run Crawler') {
+            steps {
+                script {
+                    if(params.RESTART || params.RETRY){
+                        echo "Copying artificat from previous run..."
+                        copyArtifacts(
+                            projectName: 'dev_aem_automation_test_pipeline', // Source job name
+                            selector: lastSuccessful(),                      // Get artifacts from the last successful build
+                            filter: 'crawler_state.csv',                     // File to copy
+                            target: ''                 // Target directory relative to the workspace
+                        )
+                    }
+                    dir(env.WORKING_DIR) {
+                        echo "RESTART: ${params.RESTART}, RETRY: ${params.RETRY}"
+                        if(!params.RESTART && !params.RETRY){
+                            echo "Running crawler.js..."
+                            sh 'npm run crawler'
+                        } else {
+                            if(params.RESTART){
+                                echo "Running crawler.js with RESTART..."
+                                sh 'npm run restart'
+                            }else{
+                                echo "Running crawler.js with RETRY..."
+                                sh 'npm run retry'
+                             }
+                        }
+                    }
+                }
+            }
+        }
+        stage('Archive Results') {
+            steps {
+                echo "Archiving result.csv and crawler_state.csv"
+                archiveArtifacts artifacts: 'crawler_state.csv', fingerprint: true
+                archiveArtifacts artifacts: 'result.csv', fingerprint: true
+            }
+        }
+    }
+}
